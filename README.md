@@ -10,7 +10,7 @@
 ```
 2026_SmartFridge/
 ├── raspberry/                  # 🍓 라즈베리파이 실행 코드
-│   ├── main.py                 # 🚀  진입점 — 메인 루프
+│   ├── main.py                 #   진입점 — 메인 루프
 │   ├── config.py               #   전체 환경 설정 및 상수
 │   ├── barcode_service.py      #   바코드 스캐너 시리얼 통신
 │   ├── ocr_service.py          #   EasyOCR 기반 유통기한 인식
@@ -18,6 +18,8 @@
 │   ├── scale_service.py        #   아두이노 저울 통신 및 무게 측정
 │   ├── fridge_logic.py         #   입출고 비즈니스 로직 (분기 A/B/C)
 │   └── db_supabase.py          #   백엔드 REST API 연동
+│   ├── labels.txt              #   TFLite 모델 라벨 목록
+│   └── kfood_mobilenetv2.tflite#  한국 음식 분류 TFLite 모델
 │
 ├── fridge_backend/             # ⚙️  FastAPI 백엔드 서버
 │   ├── main.py                 #   앱 초기화 및 라우터 등록
