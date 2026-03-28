@@ -1,24 +1,38 @@
 # 🧊 Smart Fridge Scanner
 
 라즈베리파이 + 아두이노 기반 스마트 냉장고 관리 시스템.
-바코드 스캔 → OCR/AI 분류 → 무게 측정 → DB 자동 저장까지 한 번에 처리합니다.
+바코드 스캔 → OCR/AI 분류 → 무게 측정 → DB 자동 저장 → 앱 조회/레시피 추천까지 한 번에 처리합니다.
 
 ---
 
-## 📁 파일 트리
+## 📁 프로젝트 구조
 
 ```
 2026_SmartFridge/
-├── config.py              # ⚙️  전체 환경 설정 및 상수
-├── db_supabase.py         # 💾  REST API (Supabase/ngrok) 연동
-├── barcode_service.py     # 🏷️  바코드 스캐너 시리얼 통신
-├── ocr_service.py         # 🔍  EasyOCR 기반 유통기한 인식
-├── ai_service.py          # 🤖  TFLite 음식 카테고리 분류
-├── scale_service.py       # ⚖️  아두이노 저울 통신 및 무게 측정
-├── fridge_logic.py        # 🧠  입출고 비즈니스 로직 (분기 A/B/C)
-├── main.py                # 🚀  진입점 — 메인 루프
-├── labels.txt             # 🏷️  TFLite 모델 라벨 목록
-└── kfood_mobilenetv2.tflite  # 🤖  한국 음식 분류 TFLite 모델
+├── raspberry/                  # 🍓 라즈베리파이 실행 코드
+│   ├── main.py                 # 🚀  진입점 — 메인 루프
+│   ├── config.py               #   전체 환경 설정 및 상수
+│   ├── barcode_service.py      #   바코드 스캐너 시리얼 통신
+│   ├── ocr_service.py          #   EasyOCR 기반 유통기한 인식
+│   ├── ai_service.py           #   TFLite 음식 카테고리 분류
+│   ├── scale_service.py        #   아두이노 저울 통신 및 무게 측정
+│   ├── fridge_logic.py         #   입출고 비즈니스 로직 (분기 A/B/C)
+│   └── db_supabase.py          #   백엔드 REST API 연동
+│
+├── fridge_backend/             # ⚙️  FastAPI 백엔드 서버
+│   ├── main.py                 #   앱 초기화 및 라우터 등록
+│   ├── requirements.txt        #   Python 의존성
+│   ├── db/
+│   │   └── connection.py       #   Supabase 클라이언트 초기화
+│   └── routers/
+│       ├── items.py            #   냉장고 아이템 CRUD
+│       ├── layouts.py          #   냉장고 레이아웃 관리
+│       └── analysis.py         #   통계 조회 + Gemini 레시피 추천
+│
+└── fridge_frontend/            # 📱 Flutter 모바일 앱
+    ├── lib/
+    │   └── main.dart           #   앱 진입점
+    └── pubspec.yaml            #   Flutter 의존성
 ```
 
 ---
@@ -74,51 +88,107 @@
 
 ---
 
-## 🛠️ 모듈 역할 상세
+## 🍓 raspberry/ — 라즈베리파이 코드
 
-### `config.py`
-모든 설정값과 상수를 한 곳에서 관리합니다.
-- 시리얼 포트, API URL, 모델 경로
-- 고정 바코드 문자열
-- `SHELF_LIFE_MAP` — 반찬 카테고리별 유통기한 (일)
+### 모듈 역할
 
-### `barcode_service.py`
-바코드 스캐너 시리얼 포트를 열고, 읽은 값의 유효성을 검사합니다.
-- `open_barcode_port()` — 포트 오픈
-- `read_barcode()` — 버퍼에서 1줄 읽기 + 패턴 검증
-- `classify_barcode()` — `'product'` / `'side_dish'` / `'remove'` 분류
+| 파일 | 역할 |
+|------|------|
+| `config.py` | 시리얼 포트, API URL, 모델 경로, `SHELF_LIFE_MAP` 등 모든 상수 관리 |
+| `barcode_service.py` | 포트 오픈, 바코드 1줄 읽기, `product`/`side_dish`/`remove` 분류 |
+| `ocr_service.py` | Picamera2 촬영 → EasyOCR → 날짜 포맷 정규화, 실패 시 수동 입력 fallback |
+| `ai_service.py` | MobileNetV2 TFLite 모델 로드 → 반찬 분류 → 유통기한 산출, confidence < 0.60 시 수동 fallback |
+| `scale_service.py` | 아두이노 시리얼 통신, 2구역(Region1/2) 무게 변화 측정, 10g 이하 재시도 |
+| `db_supabase.py` | Open Food Facts 조회, `POST /items` 저장, `DELETE /items/{id}` 삭제 |
+| `fridge_logic.py` | 분기 A(`handle_product`) / B(`handle_side_dish`) / C(`handle_remove`) 로직 |
+| `main.py` | 전체 서비스 초기화 및 바코드 이벤트 루프 |
 
-### `ocr_service.py`
-Picamera2로 촬영 후 EasyOCR로 유통기한을 인식합니다.
-- 다양한 날짜 포맷 정규화 (`normalize_date_text`)
-- 인식 실패 시 재촬영 / 수동 입력 fallback
+### 설치 및 실행
 
-### `ai_service.py`
-MobileNetV2 기반 TFLite 모델로 반찬 카테고리를 분류합니다.
-- `load_food_model()` — 최초 1회 모델 로드
-- `classify_and_get_expiry()` — 분류 → `SHELF_LIFE_MAP`에서 유통기한 산출
-- confidence < 0.60 → 수동 카테고리 선택 fallback
+모델 파일을 `raspberry/` 폴더에 배치:
+```
+raspberry/
+├── kfood_mobilenetv2.tflite
+└── labels.txt
+```
 
-### `scale_service.py`
-아두이노와 시리얼 통신하여 두 구역(Region1/2)의 무게 변화를 측정합니다.
-- `ArduinoScale` 클래스 — 연결/측정/종료
-- `get_dominant()` — 더 큰 무게 변화 구역 선택
-- `measure_with_retry()` — 10g 이하 측정값 재시도
+```bash
+pip install easyocr tflite-runtime picamera2 pyserial requests pandas opencv-python pillow
 
-### `db_supabase.py`
-백엔드 REST API와 통신하여 아이템을 저장하거나 삭제합니다.
-- `get_product_info_with_retry()` — Open Food Facts 조회
-- `save_to_db()` — POST `/items`
-- `remove_item_by_weight()` — GET `/items/search` → DELETE `/items/{id}`
+cd raspberry
+python main.py
+```
 
-### `fridge_logic.py`
-세 분기의 비즈니스 로직을 담당합니다.
-- `handle_product()` — 분기 A
-- `handle_side_dish()` — 분기 B
-- `handle_remove()` — 분기 C
+### 주요 설정 (`config.py`)
 
-### `main.py`
-모든 서비스를 초기화하고 바코드 이벤트 루프를 실행합니다.
+| 상수 | 기본값 | 설명 |
+|------|--------|------|
+| `BARCODE_PORT` | `/dev/ttyACM0` | 바코드 스캐너 포트 |
+| `ARDUINO_PORT` | `/dev/ttyUSB0` | 아두이노 포트 |
+| `CONF_THRESHOLD` | `0.60` | AI 자동 분류 최소 신뢰도 |
+| `WEIGHT_MIN_GRAM` | `10.0` | 유효 무게 최솟값 (g) |
+| `WEIGHT_TOLERANCE` | `10.0` | 제거 시 DB 조회 오차 범위 (g) |
+| `API_URL` | Render URL | 백엔드 API 주소 |
+
+---
+
+## ⚙️ fridge_backend/ — FastAPI 백엔드
+
+Supabase DB와 연동하며 라즈베리파이 및 Flutter 앱의 요청을 처리합니다.
+
+### API 엔드포인트
+
+**Items (`/items`)**
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| `POST` | `/items` | 냉장고 아이템 추가 |
+| `DELETE` | `/items/{item_id}` | 아이템 삭제 |
+| `GET` | `/items/search?weight_min=&weight_max=` | 무게 범위로 아이템 조회 |
+| `GET` | `/items/expiring` | 유통기한 3일 이내 임박 아이템 조회 |
+| `GET` | `/items/recent` | 최근 추가된 아이템 5개 조회 |
+| `PATCH` | `/items/update-spoiled` | `expires_at` 기준 상한 여부 일괄 업데이트 |
+
+**Analysis (`/analysis`)**
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| `GET` | `/analysis/items` | 전체 식재료 조회 |
+| `GET` | `/analysis/stats/category` | 카테고리별 구매/폐기 통계 |
+| `GET` | `/analysis/stats/overall` | 전체 구매/폐기 통계 + 폐기율 |
+| `GET` | `/analysis/recipe` | Gemini AI 레시피 추천 |
+
+### 환경 변수
+
+`fridge_backend/` 루트에 `.env` 파일 생성:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+### 설치 및 실행
+
+```bash
+cd fridge_backend
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+---
+
+## 📱 fridge_frontend/ — Flutter 앱
+
+백엔드 REST API를 호출하여 냉장고 현황 조회, 통계, 레시피 추천 기능을 제공합니다.
+
+### 설치 및 실행
+
+```bash
+cd fridge_frontend
+flutter pub get
+flutter run
+```
 
 ---
 
@@ -132,41 +202,6 @@ MobileNetV2 기반 TFLite 모델로 반찬 카테고리를 분류합니다.
 | 바코드 스캐너 | 상품/반찬/제거 트리거 | `/dev/ttyACM0` |
 
 ---
-
-## 📦 설치
-
-```bash
-pip install easyocr tflite-runtime picamera2 pyserial requests pandas opencv-python pillow
-```
-
-### 모델 파일 배치
-```
-2026_SmartFridge/
-├── kfood_mobilenetv2.tflite   # 한국 음식 분류 모델
-└── labels.txt                  # 카테고리 라벨 (한 줄에 하나)
-```
-
----
-
-## 🚀 실행
-
-```bash
-cd 2026_SmartFridge
-python main.py
-```
-
----
-
-## ⚙️ 주요 설정 (`config.py`)
-
-| 상수 | 기본값 | 설명 |
-|------|--------|------|
-| `BARCODE_PORT` | `/dev/ttyACM0` | 바코드 스캐너 포트 |
-| `ARDUINO_PORT` | `/dev/ttyUSB0` | 아두이노 포트 |
-| `CONF_THRESHOLD` | `0.60` | AI 자동 분류 최소 신뢰도 |
-| `WEIGHT_MIN_GRAM` | `10.0` | 유효 무게 최솟값 (g) |
-| `WEIGHT_TOLERANCE` | `10.0` | 제거 시 DB 조회 오차 범위 (g) |
-| `API_URL` | Render URL | 백엔드 API 주소 |
 
 ## 👥 팀원 소개
 <table>

@@ -205,3 +205,62 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+__pycache__
+
+.env
+
+venv
+
+# Flutter/Dart/Pub
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Flutter web
+build/web/
+
+# Generated files
+*.log
+*.tmp
+*.swp
+*.lock
+
+# IDE / Editor
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+*.keystore
+*.jks
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+
+# Firebase / 환경변수 (중요)
+.env
+.env.*
+google-services.json
+GoogleService-Info.plist
+
+# Misc
+coverage/
