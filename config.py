@@ -9,7 +9,7 @@ BAUD_RATE    = 9600
 
 # ── API / 네트워크 ───────────────────────────────────────────
 USER_AGENT  = "MySmartFridge/1.0 (wjdwogjs10@gmail.com)"
-API_URL     = "https://frolicly-hypercivilized-lilah.ngrok-free.dev"
+API_URL     = "https://two026-smart-fridge.onrender.com"
 
 # ── 이미지 저장 경로 ─────────────────────────────────────────
 RESULT_IMAGE    = "result_ocr.jpg"
@@ -19,7 +19,9 @@ AI_CAPTURE_IMAGE = "ai_captured.jpg"
 MODEL_PATH     = "kfood_mobilenetv2.tflite"
 LABEL_PATH     = "labels.txt"
 IMG_SIZE       = (160, 160)
-CONF_THRESHOLD = 0.60          # 이 값 미만이면 수동 선택 fallback
+CONF_THRESHOLD   = 0.70          # 자동 확정 최소 신뢰도
+REQUIRED_STREAK  = 10            # 같은 라벨 연속 유지 프레임 수
+ABSENCE_RESET_SEC = 3.0          # 이 초 이상 미감지 시 재확정 가능
 FONT_PATH      = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
 
 # ── 고정 바코드 ──────────────────────────────────────────────
@@ -28,7 +30,7 @@ BARCODE_REMOVE    = "TakeOut 0000000000000" # 물품 제거
 
 # ── 무게 관련 상수 ───────────────────────────────────────────
 WEIGHT_MIN_GRAM  = 10.0   # 이 값 이하면 재측정
-WEIGHT_TOLERANCE = 10.0   # 제거 시 DB 조회 오차 범위 (g)
+WEIGHT_TOLERANCE = 20.0   # 제거 시 DB 조회 오차 범위 (g)
 
 # ── 반찬 카테고리별 유통기한 테이블 (단위: 일) ─────────────
 SHELF_LIFE_MAP = {

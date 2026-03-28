@@ -8,7 +8,7 @@ from picamera2 import Picamera2
 
 from config import SHELF_LIFE_MAP
 from scale_service import ArduinoScale, get_dominant, measure_with_retry
-from ocr_service import capture_frame_with_retry, get_expiry_with_retry
+from ocr_service import get_expiry_with_retry
 from ai_service import classify_and_get_expiry
 from db_supabase import get_product_info_with_retry, save_to_db, remove_item_by_weight
 
@@ -80,23 +80,30 @@ def handle_side_dish(arduino: ArduinoScale, picam2: Picamera2):
     """
     분기 B: SideDish 바코드
       ① 내부 바코드 생성
-      ② 카메라 촬영 → TFLite 분류 → 유통기한 산출
-      ③ 무게 측정
-      ④ DB 저장 (shelf_life_days 포함)
+      ② Picamera2 실시간 스트림 → TFLite 자동 분류
+         (REQUIRED_STREAK 프레임 연속 + CONF_THRESHOLD 이상 달성 시 확정)
+      ③ SHELF_LIFE_MAP으로 유통기한 산출
+      ④ 무게 측정
+      ⑤ DB 저장 (shelf_life_days 포함)
+
+    변경 사항 (구버전 대비)
+    ─────────────────────────
+    - 단일 프레임 촬영 + 수동 카테고리 선택 → 실시간 연속 프레임 자동 분류
+    - classify_and_get_expiry(frame_bgr) → classify_and_get_expiry(picam2)
     """
     print("  [분기 B] SideDish — 반찬 등록")
 
     new_barcode = "INT" + datetime.now().strftime("%Y%m%d%H%M%S")
     print(f"  🏷️  내부 바코드: {new_barcode}")
 
-    input("\n  🍱 반찬을 카메라 앞에 놓은 뒤 Enter 를 누르세요... ")
-    print("  📸 촬영 중...")
-    frame = capture_frame_with_retry(picam2)
-
-    if frame is not None:
-        category, expiry_date, shelf_life_days = classify_and_get_expiry(frame)
-    else:
-        print("  ❌ 카메라 실패 → 기타(3일) 적용")
+    # ── 실시간 AI 자동 분류 ──────────────────────────────────
+    # picam2를 직접 넘겨 루프 내부에서 연속 프레임을 처리한다.
+    # 분류 확정까지 루프가 블로킹되며, 확정 후 자동으로 반환된다.
+    print("\n  🤖 실시간 반찬 분류를 시작합니다...")
+    try:
+        category, expiry_date, shelf_life_days = classify_and_get_expiry(picam2)
+    except Exception as e:
+        print(f"  ❌ AI 분류 오류 ({e}) → '기타'(3일) 적용")
         category        = "기타"
         shelf_life_days = SHELF_LIFE_MAP["기타"]
         expiry_date     = (
@@ -105,6 +112,7 @@ def handle_side_dish(arduino: ArduinoScale, picam2: Picamera2):
 
     product = {"name": f"반찬 ({category})", "category": category}
 
+    # ── 무게 측정 ─────────────────────────────────────────────
     print("\n  ⚖️  무게 측정 중... (선반에 올려주세요)")
     weights = measure_with_retry(arduino, allow_negative=False)
 
