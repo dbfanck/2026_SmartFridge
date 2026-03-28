@@ -166,4 +166,30 @@ python main.py
 | `CONF_THRESHOLD` | `0.60` | AI 자동 분류 최소 신뢰도 |
 | `WEIGHT_MIN_GRAM` | `10.0` | 유효 무게 최솟값 (g) |
 | `WEIGHT_TOLERANCE` | `10.0` | 제거 시 DB 조회 오차 범위 (g) |
-| `API_URL` | ngrok URL | 백엔드 API 주소 |
+| `API_URL` | Render URL | 백엔드 API 주소 |
+
+## 👥 팀원 소개
+<table>
+<tr>
+    <td align="center">
+        <img src="https://github.com/brokenbruise.png" width="100px;" alt="이수진"/><br />
+        <b>이수진</b><br />
+        <a href="https://github.com/brokenbruise">@brokenbruise</a>
+    </td>
+    <td align="center">
+        <img src="https://github.com/Jeong0922.png" width="100px;" alt="정재헌"/><br />
+        <b>정재헌</b><br />
+        <a href="https://github.com/Jeong0922">@Jeong0922</a>
+    </td>
+    <td align="center">
+        <img src="https://github.com/hayul0419.png" width="100px;" alt="조하율"/><br />
+        <b>조하율</b><br />
+        <a href="https://github.com/hayul0419">@hayul0419</a>
+    </td>
+    <td align="center">
+        <img src="https://github.com/dbfanck.png" width="100px;" alt="손민"/><br />
+        <b>손민</b><br />
+        <a href="https://github.com/dbfanck">@dbfanck</a>
+    </td>
+</tr>
+</table>
