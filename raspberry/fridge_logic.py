@@ -63,7 +63,6 @@ def handle_product(barcode: str, arduino: ArduinoScale, picam2: Picamera2,
         print(f"  ⚠️  {product['error']}")
         print("  👉 바코드를 다시 스캔하거나 상품을 확인해주세요.")
 
-    input("\n  📦 유통기한 면을 카메라 앞에 놓은 뒤 Enter 를 누르세요... ")
     print("  📸 촬영 중...")
     expiry_date, ocr_raw, best_bbox, all_results = get_expiry_with_retry(reader, picam2)
 

@@ -93,7 +93,7 @@ def remove_item_by_weight(weights: dict):
             return
 
         closest = min(matches, key=lambda x: abs(x.get("weight", 0) - abs_weight))
-        item_id = closest.get("id")
+        item_id = closest.get("item_id")
         print(
             f"  🎯 삭제 대상: id={item_id}, "
             f"name={closest.get('product_name')}, weight={closest.get('weight')}g"
